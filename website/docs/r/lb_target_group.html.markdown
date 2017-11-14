@@ -31,7 +31,10 @@ resource "aws_vpc" "main" {
 
 The following arguments are supported:
 
-* `name` - (Optional, Forces new resource) The name of the target group. If omitted, Terraform will assign a random, unique name.
+* `name` - (Optional, Forces new resource) The name of the target group. If
+omitted, Terraform will assign a random, unique name. Maximum of 32 characters,
+must contain only alphanumeric characters or hyphens, and must not begin or end
+with a hyphen.
 * `name_prefix` - (Optional, Forces new resource) Creates a unique name beginning with the specified prefix. Conflicts with `name`.
 * `port` - (Required) The port on which targets receive traffic, unless overridden when registering a specific target.
 * `protocol` - (Required) The protocol to use for routing traffic to the targets.

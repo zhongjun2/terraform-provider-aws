@@ -2630,3 +2630,40 @@ func TestValidateDxConnectionBandWidth(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateAwsLbTargetGroupName(t *testing.T) {
+	validNames := []string{
+		"nginx-web-app",
+		"cts-test-123",
+		"domain-ltdnginx-web-app",
+		"0123456789-999999999",
+		"DOUBLE-forward-slash",
+	}
+	for _, v := range validNames {
+		_, errors := validateAwsLbTargetGroupName(v, "name")
+		if len(errors) != 0 {
+			t.Fatalf("%q should be a valid LB Target Group name: %q", v, errors)
+		}
+	}
+
+	invalidNames := []string{
+		// length > 256
+		"3chocsome-thingacomb01differenta-cpattern01differenta-cpattern01diff" +
+			"erenta-cpattern01differenta-cpattern01differenta-cpattern01different" +
+			"a-cpattern01differenta-cpattern01differenta-cpattern01differenta-cpa" +
+			"ttern01differenta-cpattern01differenta-cpattern234567",
+		"special@character",
+		"different+special=character",
+		"double//slash",
+		"double..dot",
+		"-hypen-at-the-beginning",
+		"hypen-at-the-end-",
+		"-hypen-at-the-both-",
+	}
+	for _, v := range invalidNames {
+		_, errors := validateAwsLbTargetGroupName(v, "name")
+		if len(errors) == 0 {
+			t.Fatalf("%q should be an invalid LB Target Group name", v)
+		}
+	}
+}

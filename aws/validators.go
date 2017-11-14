@@ -1327,6 +1327,18 @@ func validateAwsLbTargetGroupName(v interface{}, k string) (ws []string, errors 
 	if len(name) > 32 {
 		errors = append(errors, fmt.Errorf("%q (%q) cannot be longer than '32' characters", k, name))
 	}
+	if !regexp.MustCompile(`^[0-9a-zA-Z-]+$`).MatchString(name) {
+		errors = append(errors, fmt.Errorf(
+			"only lowercase alphanumeric characters and hyphens allowed in %q", k))
+	}
+	if regexp.MustCompile(`-$`).MatchString(name) {
+		errors = append(errors, fmt.Errorf(
+			"%q cannot end with a hyphen", k))
+	}
+	if regexp.MustCompile(`^-`).MatchString(name) {
+		errors = append(errors, fmt.Errorf(
+			"%q cannot end with a hyphen", k))
+	}
 	return
 }
 
