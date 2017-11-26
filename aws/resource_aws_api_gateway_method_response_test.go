@@ -46,6 +46,35 @@ func TestAccAWSAPIGatewayMethodResponse_basic(t *testing.T) {
 	})
 }
 
+func TestAccAWSAPIGatewayMethodResponse_multiple(t *testing.T) {
+	var conf apigateway.MethodResponse
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckAWSAPIGatewayMethodResponseDestroy,
+		Steps: []resource.TestStep{
+			resource.TestStep{
+				Config: testAccAWSAPIGatewayMethodResponseMultipleConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSAPIGatewayMethodResponseExists("aws_api_gateway_method_response.error", &conf),
+					testAccCheckAWSAPIGatewayMethodResponseAttributes(&conf),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.0.error", "status_code", "400"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.1.error", "status_code", "401"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.2.error", "status_code", "402"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.3.error", "status_code", "403"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.4.error", "status_code", "404"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.5.error", "status_code", "405"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.6.error", "status_code", "406"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.7.error", "status_code", "407"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.8.error", "status_code", "408"),
+					resource.TestCheckResourceAttr("aws_api_gateway_method_response.9.error", "status_code", "409"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckAWSAPIGatewayMethodResponseAttributes(conf *apigateway.MethodResponse) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if *conf.StatusCode == "" {
@@ -224,6 +253,48 @@ resource "aws_api_gateway_method_response" "error" {
 
   response_parameters = {
     "method.response.header.Host" = true
+  }
+}
+`
+
+const testAccAWSAPIGatewayMethodResponseMultipleConfig = `
+resource "aws_api_gateway_rest_api" "test" {
+  count = 3
+  name = "test${count.index}"
+}
+
+resource "aws_api_gateway_resource" "test" {
+  count = 3
+  rest_api_id = "${aws_api_gateway_rest_api.test.*.id}"
+  parent_id = "${aws_api_gateway_rest_api.test.*.root_resource_id}"
+  path_part = "test${count.index}"
+}
+
+resource "aws_api_gateway_method" "test" {
+  count = 3
+  rest_api_id = "${aws_api_gateway_rest_api.test.*.id}"
+  resource_id = "${aws_api_gateway_resource.test.*.id}"
+  http_method = "GET"
+  authorization = "NONE"
+
+  request_models = {
+    "application/json" = "Error"
+  }
+}
+
+resource "aws_api_gateway_method_response" "error" {
+  count = 15
+  rest_api_id = "${aws_api_gateway_rest_api.test.*.id[count.index % 3]}"
+  resource_id = "${aws_api_gateway_resource.test.*.id[count.index % 3]}"
+  http_method = "${aws_api_gateway_method.test.*.http_method[count.index % 3]}"
+  status_code = "40${count.index % 3}"
+
+  response_models = {
+    "application/json" = "Error"
+  }
+
+  response_parameters = {
+    "method.response.header.Content-Type" = true
   }
 }
 `

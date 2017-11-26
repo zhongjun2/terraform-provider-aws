@@ -12,10 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
-	"sync"
 )
-
-var resourceAwsApiGatewayMethodResponseMutex = &sync.Mutex{}
 
 func resourceAwsApiGatewayMethodResponse() *schema.Resource {
 	return &schema.Resource{
@@ -73,7 +70,8 @@ func resourceAwsApiGatewayMethodResponse() *schema.Resource {
 }
 
 func resourceAwsApiGatewayMethodResponseCreate(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*AWSClient).apigateway
+	client := meta.(*AWSClient)
+	conn := client.apigateway
 
 	models := make(map[string]string)
 	for k, v := range d.Get("response_models").(map[string]interface{}) {
@@ -96,14 +94,17 @@ func resourceAwsApiGatewayMethodResponseCreate(d *schema.ResourceData, meta inte
 		}
 	}
 
-	resourceAwsApiGatewayMethodResponseMutex.Lock()
-	defer resourceAwsApiGatewayMethodResponseMutex.Unlock()
+	apiId := d.Get("rest_api_id").(string)
+
+	mk := fmt.Sprintf("%s-api-gateway-response", apiId)
+	awsMutexKV.Lock(mk)
+	defer awsMutexKV.Unlock(mk)
 
 	_, err := retryOnAwsCode(apigateway.ErrCodeConflictException, func() (interface{}, error) {
 		return conn.PutMethodResponse(&apigateway.PutMethodResponseInput{
 			HttpMethod:         aws.String(d.Get("http_method").(string)),
 			ResourceId:         aws.String(d.Get("resource_id").(string)),
-			RestApiId:          aws.String(d.Get("rest_api_id").(string)),
+			RestApiId:          aws.String(apiId),
 			StatusCode:         aws.String(d.Get("status_code").(string)),
 			ResponseModels:     aws.StringMap(models),
 			ResponseParameters: aws.BoolMap(parameters),
@@ -194,11 +195,17 @@ func resourceAwsApiGatewayMethodResponseDelete(d *schema.ResourceData, meta inte
 	conn := meta.(*AWSClient).apigateway
 	log.Printf("[DEBUG] Deleting API Gateway Method Response: %s", d.Id())
 
+	apiId := d.Get("rest_api_id").(string)
+
+	mk := fmt.Sprintf("%s-api-gateway-response", apiId)
+	awsMutexKV.Lock(mk)
+	defer awsMutexKV.Unlock(mk)
+
 	return resource.Retry(5*time.Minute, func() *resource.RetryError {
 		_, err := conn.DeleteMethodResponse(&apigateway.DeleteMethodResponseInput{
 			HttpMethod: aws.String(d.Get("http_method").(string)),
 			ResourceId: aws.String(d.Get("resource_id").(string)),
-			RestApiId:  aws.String(d.Get("rest_api_id").(string)),
+			RestApiId:  aws.String(apiId),
 			StatusCode: aws.String(d.Get("status_code").(string)),
 		})
 		if err == nil {
