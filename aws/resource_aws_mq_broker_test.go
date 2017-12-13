@@ -28,6 +28,7 @@ func testSweepMqBrokers(region string) error {
 		return fmt.Errorf("error getting client: %s", err)
 	}
 	conn := client.(*AWSClient).mqconn
+	ec2Conn := client.(*AWSClient).ec2conn
 
 	resp, err := conn.ListBrokers(&mq.ListBrokersInput{
 		MaxResults: aws.Int64(100),
@@ -54,7 +55,7 @@ func testSweepMqBrokers(region string) error {
 		if err != nil {
 			return err
 		}
-		err = waitForMqBrokerDeletion(conn, *bs.BrokerId)
+		err = waitForMqBrokerDeletion(conn, ec2Conn, *bs.BrokerId)
 		if err != nil {
 			return err
 		}

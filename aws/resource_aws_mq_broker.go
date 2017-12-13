@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/mq"
 	"github.com/hashicorp/terraform/helper/hashcode"
 	"github.com/hashicorp/terraform/helper/resource"
@@ -378,8 +379,9 @@ func resourceAwsMqBrokerDelete(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
+	ec2Conn := meta.(*AWSClient).ec2conn
 
-	return waitForMqBrokerDeletion(conn, d.Id())
+	return waitForMqBrokerDeletion(conn, ec2Conn, d.Id())
 }
 
 func resourceAwsMqUserHash(v interface{}) int {
@@ -402,7 +404,7 @@ func resourceAwsMqUserHash(v interface{}) int {
 	return hashcode.String(buf.String())
 }
 
-func waitForMqBrokerDeletion(conn *mq.MQ, id string) error {
+func waitForMqBrokerDeletion(conn *mq.MQ, ec2Conn *ec2.EC2, id string) error {
 	stateConf := resource.StateChangeConf{
 		Pending: []string{
 			mq.BrokerStateRunning,
@@ -426,7 +428,16 @@ func waitForMqBrokerDeletion(conn *mq.MQ, id string) error {
 		},
 	}
 	_, err := stateConf.WaitForState()
-	return err
+	if err != nil {
+		return err
+	}
+
+	err = cleanupMqBrokerNetworkInterfaces(ec2Conn, id)
+	if err != nil {
+		log.Printf("[WARN] Failed to cleanup ENIs for MQ broker %q", id)
+	}
+
+	return nil
 }
 
 func updateAwsMqBrokerUsers(conn *mq.MQ, bId string, oldUsers, newUsers []interface{}) error {
@@ -534,4 +545,43 @@ func diffAwsMqBrokerUsers(bId string, oldUsers, newUsers []interface{}) (
 	}
 
 	return
+}
+
+// MQ broker automatically creates ENI(s) on creation
+// but the cleanup is asynchronous and may take time
+// which then blocks IGW, SG or VPC on deletion
+// So we make the cleanup "synchronous" here
+func cleanupMqBrokerNetworkInterfaces(conn *ec2.EC2, brokerId string) error {
+	out, err := conn.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("description"),
+				Values: []*string{aws.String(
+					"Amazon MQ network interface for broker " + brokerId)},
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Printf("[DEBUG] Found %d ENIs to cleanup for MQ Broker %q",
+		len(out.NetworkInterfaces), brokerId)
+
+	if len(out.NetworkInterfaces) == 0 {
+		// Nothing to cleanup
+		return nil
+	}
+
+	err = detachNetworkInterfaces(conn, out.NetworkInterfaces)
+	if err != nil {
+		return err
+	}
+
+	err = deleteNetworkInterfaces(conn, out.NetworkInterfaces)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
