@@ -22,7 +22,9 @@ func resourceAwsGameliftFleet() *schema.Resource {
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(15 * time.Minute),
-			Delete: schema.DefaultTimeout(5 * time.Minute),
+			// Deletion normally takes ~5mins
+			// but it can take much londer if VPC Peering is used
+			Delete: schema.DefaultTimeout(60 * time.Minute),
 		},
 
 		Schema: map[string]*schema.Schema{

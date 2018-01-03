@@ -356,6 +356,8 @@ func Provider() terraform.ResourceProvider {
 			"aws_gamelift_alias":                           resourceAwsGameliftAlias(),
 			"aws_gamelift_build":                           resourceAwsGameliftBuild(),
 			"aws_gamelift_fleet":                           resourceAwsGameliftFleet(),
+			"aws_gamelift_vpc_peering_authorization":       resourceAwsGameliftVpcPeeringAuthorization(),
+			"aws_gamelift_vpc_peering_connection":          resourceAwsGameliftVpcPeeringConnection(),
 			"aws_glacier_vault":                            resourceAwsGlacierVault(),
 			"aws_iam_access_key":                           resourceAwsIamAccessKey(),
 			"aws_iam_account_alias":                        resourceAwsIamAccountAlias(),

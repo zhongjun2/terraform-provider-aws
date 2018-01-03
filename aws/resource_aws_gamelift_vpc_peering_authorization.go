@@ -68,7 +68,7 @@ func resourceAwsGameliftVpcPeeringAuthorizationRead(d *schema.ResourceData, meta
 	}
 
 	auth := findGameliftVpcPeeringAuth(out.VpcPeeringAuthorizations, accId, peerVpcId)
-	if auth != nil {
+	if auth == nil {
 		log.Printf("[WARN] Gamelift VPC Peering Authorization (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil
@@ -81,6 +81,7 @@ func resourceAwsGameliftVpcPeeringAuthorizationRead(d *schema.ResourceData, meta
 
 func findGameliftVpcPeeringAuth(auths []*gamelift.VpcPeeringAuthorization, accId, peerVpcId string) *gamelift.VpcPeeringAuthorization {
 	for _, auth := range auths {
+		log.Printf("[DEBUG] Comparing Gamelift VPC Peering auth accID %q to %q && VPCID %q to %q", *auth.GameLiftAwsAccountId, accId, *auth.PeerVpcId, peerVpcId)
 		if *auth.GameLiftAwsAccountId == accId && *auth.PeerVpcId == peerVpcId {
 			return auth
 		}
@@ -91,7 +92,7 @@ func findGameliftVpcPeeringAuth(auths []*gamelift.VpcPeeringAuthorization, accId
 func resourceAwsGameliftVpcPeeringAuthorizationDelete(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*AWSClient).gameliftconn
 
-	accId := d.Get("aws_account_id").(string)
+	accId := d.Get("gamelift_aws_account_id").(string)
 	peerVpcId := d.Get("peer_vpc_id").(string)
 
 	log.Printf("[INFO] Deleting Gamelift VPC Peering Authorization: %s", d.Id())
