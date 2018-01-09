@@ -84,7 +84,7 @@ func TestParseTaskDefinition(t *testing.T) {
 	}
 }
 
-func TestAccAWSEcsServiceWithARN(t *testing.T) {
+func TestAccAWSEcsService_withARN(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	clusterName := fmt.Sprintf("tf-acc-cluster-%s", rString)
@@ -113,7 +113,7 @@ func TestAccAWSEcsServiceWithARN(t *testing.T) {
 	})
 }
 
-func TestAccAWSEcsServiceWithUnnormalizedPlacementStrategy(t *testing.T) {
+func TestAccAWSEcsService_withUnnormalizedPlacementStrategy(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	clusterName := fmt.Sprintf("tf-acc-cluster-%s", rString)
@@ -135,7 +135,7 @@ func TestAccAWSEcsServiceWithUnnormalizedPlacementStrategy(t *testing.T) {
 	})
 }
 
-func TestAccAWSEcsServiceWithFamilyAndRevision(t *testing.T) {
+func TestAccAWSEcsService_withFamilyAndRevision(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	clusterName := fmt.Sprintf("tf-acc-cluster-%s", rString)
@@ -165,7 +165,7 @@ func TestAccAWSEcsServiceWithFamilyAndRevision(t *testing.T) {
 }
 
 // Regression for https://github.com/hashicorp/terraform/issues/2427
-func TestAccAWSEcsServiceWithRenamedCluster(t *testing.T) {
+func TestAccAWSEcsService_withRenamedCluster(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	clusterName := fmt.Sprintf("tf-acc-cluster-%s", rString)
@@ -385,7 +385,7 @@ func TestAccAWSEcsService_withAlb(t *testing.T) {
 	})
 }
 
-func TestAccAWSEcsServiceWithPlacementStrategy(t *testing.T) {
+func TestAccAWSEcsService_withPlacementStrategy(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	clusterName := fmt.Sprintf("tf-acc-cluster-%s", rString)
@@ -415,7 +415,7 @@ func TestAccAWSEcsServiceWithPlacementStrategy(t *testing.T) {
 	})
 }
 
-func TestAccAWSEcsServiceWithPlacementConstraints(t *testing.T) {
+func TestAccAWSEcsService_withPlacementConstraints(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	clusterName := fmt.Sprintf("tf-acc-cluster-%s", rString)
@@ -438,7 +438,7 @@ func TestAccAWSEcsServiceWithPlacementConstraints(t *testing.T) {
 	})
 }
 
-func TestAccAWSEcsServiceWithPlacementConstraints_emptyExpression(t *testing.T) {
+func TestAccAWSEcsService_withPlacementConstraints_emptyExpression(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	clusterName := fmt.Sprintf("tf-acc-cluster-%s", rString)
@@ -461,7 +461,7 @@ func TestAccAWSEcsServiceWithPlacementConstraints_emptyExpression(t *testing.T) 
 	})
 }
 
-func TestAccAWSEcsServiceWithLaunchTypeFargate(t *testing.T) {
+func TestAccAWSEcsService_withLaunchTypeFargate(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	sg1Name := fmt.Sprintf("tf-acc-sg-1-%s", rString)
@@ -486,7 +486,7 @@ func TestAccAWSEcsServiceWithLaunchTypeFargate(t *testing.T) {
 	})
 }
 
-func TestAccAWSEcsServiceWithNetworkConfiguration(t *testing.T) {
+func TestAccAWSEcsService_withNetworkConfiguration(t *testing.T) {
 	rString := acctest.RandString(8)
 
 	sg1Name := fmt.Sprintf("tf-acc-sg-1-%s", rString)
