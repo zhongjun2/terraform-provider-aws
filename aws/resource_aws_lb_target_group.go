@@ -596,25 +596,6 @@ func resourceAwsLbTargetGroupCustomizeDiff(diff *schema.ResourceDiff, v interfac
 		if len(stickinessBlocks) != 0 {
 			return fmt.Errorf("Network Load Balancers do not support Stickiness")
 		}
-		// Network Load Balancers have many special qwirks to them.
-		// See http://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_CreateTargetGroup.html
-		if healthChecks := diff.Get("health_check").([]interface{}); len(healthChecks) == 1 {
-			healthCheck := healthChecks[0].(map[string]interface{})
-			// Cannot set custom matcher on TCP health checks
-			if m := healthCheck["matcher"].(string); m != "" {
-				return fmt.Errorf("%s: custom matcher is not supported for target_groups with TCP protocol", diff.Id())
-			}
-			// Cannot set custom path on TCP health checks
-			if m := healthCheck["path"].(string); m != "" {
-				return fmt.Errorf("%s: custom path is not supported for target_groups with TCP protocol", diff.Id())
-			}
-			// Cannot set custom timeout on TCP health checks
-			if t := healthCheck["timeout"].(int); t != 0 && diff.Id() == "" {
-				// timeout has a default value, so only check this if this is a network
-				// LB and is a first run
-				return fmt.Errorf("%s: custom timeout is not supported for target_groups with TCP protocol", diff.Id())
-			}
-		}
 	}
 
 	if strings.Contains(protocol, "HTTP") {
@@ -624,6 +605,55 @@ func resourceAwsLbTargetGroupCustomizeDiff(diff *schema.ResourceDiff, v interfac
 			if p := healthCheck["protocol"].(string); strings.ToLower(p) == "tcp" {
 				return fmt.Errorf("HTTP Target Groups cannot use TCP health checks")
 			}
+		}
+	}
+
+	if healthChecks := diff.Get("health_check").([]interface{}); len(healthChecks) == 1 {
+		healthCheck := healthChecks[0].(map[string]interface{})
+		protocol = strings.ToLower(healthCheck["protocol"].(string))
+
+		// HTTP/HTTPS health checks have quite different requirements than
+		// TCP health checks, so we'll validate them separately.
+		// See http://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_CreateTargetGroup.html
+		switch protocol {
+		case "tcp":
+
+			// Cannot set "matcher" on TCP health checks
+			if v := healthCheck["matcher"].(string); v != "" {
+				return fmt.Errorf("\"matcher\" is not supported for TCP health checks")
+			}
+
+			// Cannot set "path" on TCP health checks
+			if v := healthCheck["path"].(string); v != "" {
+				return fmt.Errorf("\"path\" is not supported for TCP health checks")
+			}
+
+			// Cannot "timeout" on TCP health checks
+			if v := healthCheck["timeout"].(int); v != 0 && diff.Id() == "" {
+				// timeout has a default value, so only check this if this is a network
+				// LB and is a first run
+				return fmt.Errorf("\"timeout\" is not supported for TCP health checks")
+			}
+
+			// "interval" must be either 10 or 30 for network load balancers
+			if v := healthCheck["interval"].(int); v != 10 && v != 30 {
+				return fmt.Errorf("\"interval\" for TCP health check must be either 10 or 30 seconds")
+			}
+
+		case "http", "https":
+
+			// "interval" must be between 5 and 300 inclusive
+			if v := healthCheck["interval"].(int); v < 5 || v > 300 {
+				return fmt.Errorf("\"interval\" for HTTP/HTTPS health check must be between 5 and 300 inclusive")
+			}
+
+			// "timeout" must be between 2 and 60 inclusive
+			if v := healthCheck["timeout"].(int); v < 2 || v > 60 {
+				return fmt.Errorf("\"timeout\" for HTTP/HTTPS health check must be between 2 and 60 inclusive")
+			}
+
+		default:
+			return fmt.Errorf("unsupported healthcheck protocol %q", protocol)
 		}
 	}
 

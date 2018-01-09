@@ -156,6 +156,32 @@ func TestAccAWSLBTargetGroup_networkLB_TargetGroup(t *testing.T) {
 	})
 }
 
+func TestAccAWSLBTargetGroup_networkLB_HealthCheckHTTP(t *testing.T) {
+	var conf elbv2.TargetGroup
+	targetGroupName := fmt.Sprintf("test-target-group-%s", acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum))
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:      func() { testAccPreCheck(t) },
+		IDRefreshName: "aws_lb_target_group.test",
+		Providers:     testAccProviders,
+		CheckDestroy:  testAccCheckAWSLBTargetGroupDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccAWSLBTargetGroupConfig_typeTCPhealthcheckHTTP(targetGroupName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// This test is generally the same as in
+					// TestAccAWSLBTargetGroup_networkLB_TargetGroup, so we
+					// only test that we successfully made an HTTP healthcheck
+					// here, since that's the important thing.
+					testAccCheckAWSLBTargetGroupExists("aws_lb_target_group.test", &conf),
+					resource.TestCheckResourceAttrSet("aws_lb_target_group.test", "arn"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.protocol", "HTTP"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccAWSLBTargetGroupBackwardsCompatibility(t *testing.T) {
 	var conf elbv2.TargetGroup
 	targetGroupName := fmt.Sprintf("test-target-group-%s", acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum))
@@ -1110,6 +1136,41 @@ func testAccAWSLBTargetGroupConfig_typeTCP(targetGroupName string) string {
     port = "traffic-port"
     protocol = "TCP"
     healthy_threshold = 3
+    unhealthy_threshold = 3
+  }
+
+  tags {
+    Name = "TestAcc_networkLB_TargetGroup"
+  }
+}
+
+resource "aws_vpc" "test" {
+  cidr_block = "10.0.0.0/16"
+
+  tags {
+    Name = "TestAcc_networkLB_TargetGroup"
+  }
+}`, targetGroupName)
+}
+
+func testAccAWSLBTargetGroupConfig_typeTCPhealthcheckHTTP(targetGroupName string) string {
+	return fmt.Sprintf(`resource "aws_lb_target_group" "test" {
+  name = "%s"
+  port = 8082
+  protocol = "TCP"
+  vpc_id = "${aws_vpc.test.id}"
+
+  deregistration_delay = 200
+
+  health_check {
+    interval = 10
+    port     = "traffic-port"
+		protocol = "HTTP"
+		path     = "/"
+		timeout  = 5
+		matcher  = "200"
+
+		healthy_threshold   = 3
     unhealthy_threshold = 3
   }
 
