@@ -156,6 +156,70 @@ func TestAccAWSLBTargetGroup_networkLB_TargetGroup(t *testing.T) {
 	})
 }
 
+func TestAccAWSLBTargetGroup_TCP_HTTPHealthCheck(t *testing.T) {
+	var confBefore, confAfter elbv2.TargetGroup
+	targetGroupName := fmt.Sprintf("test-target-group-%s", acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum))
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:      func() { testAccPreCheck(t) },
+		IDRefreshName: "aws_lb_target_group.test",
+		Providers:     testAccProviders,
+		CheckDestroy:  testAccCheckAWSLBTargetGroupDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccAWSLBTargetGroupConfig_typeTCP_HTTPHealthCheck(targetGroupName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckAWSLBTargetGroupExists("aws_lb_target_group.test", &confBefore),
+					resource.TestCheckResourceAttrSet("aws_lb_target_group.test", "arn"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "name", targetGroupName),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "port", "8082"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "protocol", "TCP"),
+					resource.TestCheckResourceAttrSet("aws_lb_target_group.test", "vpc_id"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "deregistration_delay", "300"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.#", "1"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.interval", "30"),
+					testAccCheckAWSLBTargetGroupHealthCheckInterval(&confBefore, 30),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.port", "443"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.protocol", "HTTPS"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.timeout", "10"),
+					testAccCheckAWSLBTargetGroupHealthCheckTimeout(&confBefore, 10),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.healthy_threshold", "2"),
+					testAccCheckAWSLBTargetGroupHealthyThreshold(&confBefore, 2),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.unhealthy_threshold", "2"),
+					testAccCheckAWSLBTargetGroupUnhealthyThreshold(&confBefore, 2),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "tags.%", "1"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "tags.Name", "TestAcc_networkLB_HTTPHealthCheck"),
+				),
+			},
+			{
+				Config: testAccAWSLBTargetGroupConfig_typeTCP_HTTPHealthCheckUpdated(targetGroupName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckAWSLBTargetGroupExists("aws_lb_target_group.test", &confAfter),
+					resource.TestCheckResourceAttrSet("aws_lb_target_group.test", "arn"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "name", targetGroupName),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "port", "8082"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "protocol", "TCP"),
+					resource.TestCheckResourceAttrSet("aws_lb_target_group.test", "vpc_id"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "deregistration_delay", "300"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.#", "1"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.interval", "30"),
+					testAccCheckAWSLBTargetGroupHealthCheckInterval(&confAfter, 30),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.port", "443"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.protocol", "HTTPS"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.timeout", "10"),
+					testAccCheckAWSLBTargetGroupHealthCheckTimeout(&confBefore, 10),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.healthy_threshold", "4"),
+					testAccCheckAWSLBTargetGroupHealthyThreshold(&confAfter, 4),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "health_check.0.unhealthy_threshold", "4"),
+					testAccCheckAWSLBTargetGroupUnhealthyThreshold(&confAfter, 4),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "tags.%", "1"),
+					resource.TestCheckResourceAttr("aws_lb_target_group.test", "tags.Name", "TestAcc_networkLB_HTTPHealthCheck"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccAWSLBTargetGroupBackwardsCompatibility(t *testing.T) {
 	var conf elbv2.TargetGroup
 	targetGroupName := fmt.Sprintf("test-target-group-%s", acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum))
@@ -574,24 +638,24 @@ func TestAccAWSLBTargetGroup_defaults_network(t *testing.T) {
     interval = 10
     port     = 8081
     protocol = "TCP"
-        `
+    `
 	healthCheckInvalid2 := `
     interval = 10
     port     = 8081
     protocol = "TCP"
-                matcher = "200"
-        `
+    matcher = "200"
+    `
 	healthCheckInvalid3 := `
     interval = 10
     port     = 8081
     protocol = "TCP"
-                timeout = 4
-        `
+    timeout = 4
+    `
 	healthCheckValid := `
     interval = 10
     port     = 8081
     protocol = "TCP"
-        `
+    `
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:      func() { testAccPreCheck(t) },
@@ -1185,6 +1249,68 @@ resource "aws_vpc" "test" {
 
   tags {
     Name = "TestAcc_networkLB_TargetGroup"
+  }
+}`, targetGroupName)
+}
+
+func testAccAWSLBTargetGroupConfig_typeTCP_HTTPHealthCheck(targetGroupName string) string {
+	return fmt.Sprintf(`resource "aws_lb_target_group" "test" {
+  name     = "%s"
+  port     = 8082
+  protocol = "TCP"
+  vpc_id   = "${aws_vpc.test.id}"
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = "10"
+    port                = "443"
+    path                = "/healthz"
+    protocol            = "HTTPS"
+    interval            = 30
+    matcher             = "200-399"
+  }
+
+  tags {
+    Name = "TestAcc_networkLB_HTTPHealthCheck"
+  }
+}
+
+resource "aws_vpc" "test" {
+  cidr_block = "10.0.0.0/16"
+  tags {
+    Name = "TestAcc_networkLB_HTTPHealthCheck"
+  }
+}`, targetGroupName)
+}
+
+func testAccAWSLBTargetGroupConfig_typeTCP_HTTPHealthCheckUpdated(targetGroupName string) string {
+	return fmt.Sprintf(`resource "aws_lb_target_group" "test" {
+  name     = "%s"
+  port     = 8082
+  protocol = "TCP"
+  vpc_id   = "${aws_vpc.test.id}"
+
+  health_check {
+    healthy_threshold   = 4
+    unhealthy_threshold = 4
+    timeout             = "10"
+    port                = "443"
+    path                = "/healthz2"
+    protocol            = "HTTPS"
+    interval            = 30
+    matcher             = "200-399"
+  }
+
+  tags {
+    Name = "TestAcc_networkLB_HTTPHealthCheck"
+  }
+}
+
+resource "aws_vpc" "test" {
+  cidr_block = "10.0.0.0/16"
+  tags {
+    Name = "TestAcc_networkLB_HTTPHealthCheck"
   }
 }`, targetGroupName)
 }
